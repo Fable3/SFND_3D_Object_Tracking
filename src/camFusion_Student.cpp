@@ -1,4 +1,4 @@
-
+#define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <algorithm>
 #include <numeric>
@@ -9,6 +9,7 @@
 #include "dataStructures.h"
 
 using namespace std;
+
 
 
 // Create groups of Lidar points whose projection into the camera falls into the same bounding box

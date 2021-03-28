@@ -1,10 +1,11 @@
-
 /* INCLUDES FOR THIS PROJECT */
+#define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <deque>
 #include <cmath>
 #include <limits>
 #include <opencv2/core.hpp>
@@ -71,7 +72,7 @@ int main(int argc, const char *argv[])
     // misc
     double sensorFrameRate = 10.0 / imgStepWidth; // frames per second for Lidar and camera
     int dataBufferSize = 2;       // no. of images which are held in memory (ring buffer) at the same time
-    vector<DataFrame> dataBuffer; // list of data frames which are held in memory at the same time
+    deque<DataFrame> dataBuffer; // list of data frames which are held in memory at the same time
     bool bVis = false;            // visualize results
 
     /* MAIN LOOP OVER ALL IMAGES */
@@ -88,6 +89,9 @@ int main(int argc, const char *argv[])
         // load image from file 
         cv::Mat img = cv::imread(imgFullFilename);
 
+		// ringbuffer using deque
+		if (dataBuffer.size() >= dataBufferSize) dataBuffer.pop_front();
+
         // push image into data frame buffer
         DataFrame frame;
         frame.cameraImg = img;
@@ -97,6 +101,8 @@ int main(int argc, const char *argv[])
 
 
         /* DETECT & CLASSIFY OBJECTS */
+
+		double total_time = 0;
 
         float confThreshold = 0.2;
         float nmsThreshold = 0.4;        
@@ -150,16 +156,28 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
+		double t = (double)cv::getTickCount();
         string detectorType = "SHITOMASI";
 
         if (detectorType.compare("SHITOMASI") == 0)
         {
-            detKeypointsShiTomasi(keypoints, imgGray, false);
-        }
-        else
-        {
-            //...
-        }
+			detKeypointsShiTomasi(keypoints, imgGray, false);
+		}
+		else if (detectorType.compare("HARRIS") == 0)
+		{
+			detKeypointsHarris(keypoints, imgGray, false);
+		}
+		else if (detectorType.compare("HARRIS_GFT") == 0)
+		{
+			detKeypointsHarrisWithGoodFeaturesToTrack(keypoints, imgGray, false);
+		}
+		else
+		{
+			detKeypointsModern(keypoints, img, detectorType, false);
+		}
+		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+		cout << detectorType << " detection with n=" << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
+		total_time += t;
 
         // optional : limit number of keypoints (helpful for debugging and learning)
         bool bLimitKpts = false;
@@ -185,7 +203,11 @@ int main(int argc, const char *argv[])
 
         cv::Mat descriptors;
         string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
+		t = (double)cv::getTickCount();
         descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors, descriptorType);
+		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+		cout << descriptorType << " descriptor extraction in " << 1000 * t / 1.0 << " ms" << endl;
+		total_time += t;
 
         // push descriptors for current frame to end of data buffer
         (dataBuffer.end() - 1)->descriptors = descriptors;
@@ -200,12 +222,18 @@ int main(int argc, const char *argv[])
 
             vector<cv::DMatch> matches;
             string matcherType = "MAT_BF";        // MAT_BF, MAT_FLANN
-            string descriptorType = "DES_BINARY"; // DES_BINARY, DES_HOG
-            string selectorType = "SEL_NN";       // SEL_NN, SEL_KNN
+			string matcherDescriptorType = "DES_BINARY"; // DES_BINARY, DES_HOG
+			if (descriptorType == "SIFT") matcherDescriptorType = "DES_HOG"; // SIFT uses float
+			string selectorType = "SEL_KNN";       // SEL_NN, SEL_KNN
+
+			double t = (double)cv::getTickCount();
 
             matchDescriptors((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints,
                              (dataBuffer.end() - 2)->descriptors, (dataBuffer.end() - 1)->descriptors,
-                             matches, descriptorType, matcherType, selectorType);
+                             matches, matcherDescriptorType, matcherType, selectorType);
+
+			t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+			cout << matcherType << " " << selectorType << " with n=" << matches.size() << " matches in " << 1000 * t / 1.0 << " ms" << endl;
 
             // store matches in current data frame
             (dataBuffer.end() - 1)->kptMatches = matches;
