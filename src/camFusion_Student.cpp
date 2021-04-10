@@ -10,7 +10,28 @@
 
 using namespace std;
 
-
+// helper function to get distance to lidar cloud with filtering out outlier points
+float getLidarPointCloudDistance(std::vector<LidarPoint> &lidarPoints)
+{
+	std::vector<float> x_distances;
+	x_distances.reserve(lidarPoints.size());
+	float x_min = 1e8; // fallback value for too few lidar points
+	for (auto it1 = lidarPoints.begin(); it1 != lidarPoints.end(); ++it1)
+	{
+		float x = it1->x;
+		if (x_min > x) x_min = x;
+		x_distances.push_back(x);
+	}
+	std::sort(x_distances.begin(), x_distances.end());
+	int number_of_closest_points_to_consider = 9;
+	double x_min_median = x_min; // distance after filtering out outlier lidar points (test for lidar based TTC calculation)
+	if (x_distances.size() > number_of_closest_points_to_consider)
+	{
+		// median of odd number of closest points
+		x_min_median = x_distances[number_of_closest_points_to_consider / 2];
+	}
+	return x_min_median;
+}
 
 // Create groups of Lidar points whose projection into the camera falls into the same bounding box
 void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<LidarPoint> &lidarPoints, float shrinkFactor, cv::Mat &P_rect_xx, cv::Mat &R_rect_xx, cv::Mat &RT)
@@ -81,6 +102,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         // plot Lidar points into top view image
         int top=1e8, left=1e8, bottom=0.0, right=0.0; 
         float xwmin=1e8, ywmin=1e8, ywmax=-1e8;
+
         for (auto it2 = it1->lidarPoints.begin(); it2 != it1->lidarPoints.end(); ++it2)
         {
             // world coordinates
@@ -103,6 +125,8 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
             // draw individual point
             cv::circle(topviewImg, cv::Point(x, y), 4, currColor, -1);
         }
+		
+		double xwmin_median = getLidarPointCloudDistance(it1->lidarPoints);
 
         // draw enclosing rectangle
         cv::rectangle(topviewImg, cv::Point(left, top), cv::Point(right, bottom),cv::Scalar(0,0,0), 2);
@@ -111,7 +135,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         char str1[200], str2[200];
         sprintf(str1, "id=%d, #pts=%d", it1->boxID, (int)it1->lidarPoints.size());
         putText(topviewImg, str1, cv::Point2f(left-250* imageSize.width /2000, bottom+50* imageSize.height / 2000), cv::FONT_ITALIC, imageSize.height/1000.0, currColor);
-        sprintf(str2, "xmin=%2.2f m, yw=%2.2f m", xwmin, ywmax-ywmin);
+        sprintf(str2, "xmin=%2.2f m (median %2.2f), yw=%2.2f m", xwmin, xwmin_median, ywmax-ywmin);
         putText(topviewImg, str2, cv::Point2f(left-250* imageSize.width / 2000, bottom+125 * imageSize.height / 2000), cv::FONT_ITALIC, imageSize.height / 1000.0, currColor);
     }
 
@@ -154,7 +178,15 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // ...
+	float x_min_prev = getLidarPointCloudDistance(lidarPointsPrev);
+	float x_min_curr = getLidarPointCloudDistance(lidarPointsCurr);
+	if (x_min_curr >= x_min_prev) TTC = 1000;
+	else
+	{
+		float x_dist = x_min_prev - x_min_curr;
+		float x_relative_velocity = x_dist * frameRate; // frameRate is in 1/s
+		TTC = x_min_curr / x_relative_velocity;
+	}
 }
 
 
