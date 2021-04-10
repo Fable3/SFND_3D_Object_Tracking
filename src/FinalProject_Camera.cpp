@@ -333,13 +333,15 @@ int run(std::string detectorType, std::string descriptorType, std::vector<float>
 
 int main(int argc, const char *argv[])
 {
-	//vector<string> all_detectors = { "SHITOMASI", "HARRIS", "HARRIS_GFT", "FAST", "BRISK", "ORB", "AKAZE", "SIFT" };
-	vector<string> all_detectors = { "SHITOMASI", "HARRIS", "HARRIS_GFT" };
+	vector<string> all_detectors = { "SHITOMASI", "HARRIS", "HARRIS_GFT", "FAST", "BRISK", "ORB", "AKAZE", "SIFT" };
+	//vector<string> all_detectors = { "SHITOMASI", "HARRIS", "HARRIS_GFT" };
+	//vector<string> all_detectors = { "FAST", "BRISK" };
+	//vector<string> all_detectors = { "ORB", "AKAZE", "SIFT" };
 	vector<string> all_descriptors = { "BRISK", "BRIEF","ORB", "FREAK", "AKAZE", "SIFT" };
 
 	FILE *fLogFile;
 
-	fopen_s(&(fLogFile), "ttc.log", "wt");
+	fopen_s(&(fLogFile), "ttc_camera.log", "wt");
 	// headers:
 	int num_frames = 18;
 	int i;
