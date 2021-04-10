@@ -24,8 +24,14 @@
 using namespace std;
 
 /* MAIN PROGRAM */
-int main(int argc, const char *argv[])
+//int main(int argc, const char *argv[])
+int run(std::string detectorType, std::string descriptorType, std::vector<float> &TTCEstimates)
 {
+	/*if (1)
+	{
+		for (int i = 0; i < 18; i++) TTCEstimates.push_back(((i * 101) % 14) / 10.0 + 9.0);
+		return 0;
+	}*/
     /* INIT VARIABLES AND DATA STRUCTURES */
 
     // data location
@@ -36,7 +42,7 @@ int main(int argc, const char *argv[])
     string imgPrefix = "KITTI/2011_09_26/image_02/data/000000"; // left camera, color
     string imgFileType = ".png";
     int imgStartIndex = 0; // first file index to load (assumes Lidar and camera names have identical naming convention)
-    int imgEndIndex = 77;   // last file index to load
+    int imgEndIndex = 18;   // last file index to load
     int imgStepWidth = 1; 
     int imgFillWidth = 4;  // no. of digits which make up the file index (e.g. img-0001.png)
 
@@ -157,7 +163,7 @@ int main(int argc, const char *argv[])
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
 		double t = (double)cv::getTickCount();
-        string detectorType = "SHITOMASI";
+        //string detectorType = "FAST";
 
         if (detectorType.compare("SHITOMASI") == 0)
         {
@@ -202,7 +208,7 @@ int main(int argc, const char *argv[])
         /* EXTRACT KEYPOINT DESCRIPTORS */
 
         cv::Mat descriptors;
-        string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
+        //string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
 		t = (double)cv::getTickCount();
         descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors, descriptorType);
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
@@ -295,7 +301,7 @@ int main(int argc, const char *argv[])
                     computeTTCCamera((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera);
                     //// EOF STUDENT ASSIGNMENT
 
-                    bVis = true;
+                    bVis = false;
                     if (bVis)
                     {
                         cv::Mat visImg = (dataBuffer.end() - 1)->cameraImg.clone();
@@ -314,6 +320,7 @@ int main(int argc, const char *argv[])
                     }
                     bVis = false;
 
+					TTCEstimates.push_back(ttcCamera);
                 } // eof TTC computation
             } // eof loop over all BB matches            
 
@@ -322,4 +329,55 @@ int main(int argc, const char *argv[])
     } // eof loop over all images
 
     return 0;
+}
+
+int main(int argc, const char *argv[])
+{
+	//vector<string> all_detectors = { "SHITOMASI", "HARRIS", "HARRIS_GFT", "FAST", "BRISK", "ORB", "AKAZE", "SIFT" };
+	vector<string> all_detectors = { "SHITOMASI", "HARRIS", "HARRIS_GFT" };
+	vector<string> all_descriptors = { "BRISK", "BRIEF","ORB", "FREAK", "AKAZE", "SIFT" };
+
+	FILE *fLogFile;
+
+	fopen_s(&(fLogFile), "ttc.log", "wt");
+	// headers:
+	int num_frames = 18;
+	int i;
+	for (i=0;i<num_frames;i++)
+	{
+		fprintf(fLogFile , "| %d", i + 1);
+	}
+	fprintf(fLogFile, "\n---");
+	for (i = 0; i < num_frames; i++)
+	{
+		fprintf(fLogFile, "|---");
+	}
+	fprintf(fLogFile, "\n");
+	
+	for (auto detectorType : all_detectors)
+	{
+		for (auto descriptorType : all_descriptors)
+		{
+			if (descriptorType == "AKAZE" && detectorType != "AKAZE")
+			{
+				// invalid combination: @details AKAZE descriptors can only be used with KAZE or AKAZE keypoints.
+				continue;
+			}
+			if (descriptorType == "ORB" && detectorType == "SIFT")
+			{
+				// invalid combination: keypoint octave is too high, it'll cause memory full
+				continue;
+			}
+			std::vector<float> TTCEstimates;
+			run(detectorType, descriptorType, TTCEstimates);
+			fprintf(fLogFile, "%s+%s", detectorType.c_str(), descriptorType.c_str());
+			for (i = 0; i < num_frames; i++)
+			{
+				fprintf(fLogFile, "| %.2f", TTCEstimates[i]);
+			}
+			fprintf(fLogFile, "\n");
+			fflush(fLogFile);
+		}
+	}
+	fclose(fLogFile);
 }
