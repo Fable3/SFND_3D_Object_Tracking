@@ -163,7 +163,31 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 // associate a given bounding box with the keypoints it contains
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
-    // ...
+	std::vector<std::pair<cv::DMatch, float> > PreFilteredMatchesWithDistance;
+	float distance_sum = 0;
+	for (auto &match : kptMatches)
+	{
+		cv::KeyPoint &prevKeyPoint = kptsPrev[match.queryIdx];
+		cv::KeyPoint &currKeyPoint = kptsCurr[match.trainIdx];
+		if (boundingBox.roi.contains(currKeyPoint.pt))
+		{
+			auto dist_vect = currKeyPoint.pt - prevKeyPoint.pt;
+			float dist = sqrt(dist_vect.x*dist_vect.x + dist_vect.y*dist_vect.y);
+			distance_sum += dist;
+			PreFilteredMatchesWithDistance.push_back(std::pair<cv::DMatch, float>(match, dist));
+		}
+	}
+	float mean_distance = distance_sum / PreFilteredMatchesWithDistance.size();
+	float max_distance = mean_distance * 2 + 1; // with 1-1 pixel shift multiplication only is not reliable, I allowed +1 for pixel coordinate rounding error
+	for (auto &match_with_dist : PreFilteredMatchesWithDistance)
+	{
+		float dist = match_with_dist.second;
+		if (dist <= max_distance)
+		{
+			boundingBox.kptMatches.push_back(match_with_dist.first);
+			boundingBox.keypoints.push_back(kptsCurr[match_with_dist.first.trainIdx]); // not used anywhere
+		}
+	}
 }
 
 
