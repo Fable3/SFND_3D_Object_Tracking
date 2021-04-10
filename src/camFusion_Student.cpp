@@ -110,9 +110,9 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         // augment object with some key data
         char str1[200], str2[200];
         sprintf(str1, "id=%d, #pts=%d", it1->boxID, (int)it1->lidarPoints.size());
-        putText(topviewImg, str1, cv::Point2f(left-250, bottom+50), cv::FONT_ITALIC, 2, currColor);
+        putText(topviewImg, str1, cv::Point2f(left-250* imageSize.width /2000, bottom+50* imageSize.height / 2000), cv::FONT_ITALIC, imageSize.height/1000.0, currColor);
         sprintf(str2, "xmin=%2.2f m, yw=%2.2f m", xwmin, ywmax-ywmin);
-        putText(topviewImg, str2, cv::Point2f(left-250, bottom+125), cv::FONT_ITALIC, 2, currColor);  
+        putText(topviewImg, str2, cv::Point2f(left-250* imageSize.width / 2000, bottom+125 * imageSize.height / 2000), cv::FONT_ITALIC, imageSize.height / 1000.0, currColor);
     }
 
     // plot distance markers
@@ -145,7 +145,7 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 
 // Compute time-to-collision (TTC) based on keypoint correspondences in successive images
 void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, 
-                      std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
+                      std::vector<cv::DMatch> &kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
 {
     // ...
 }
@@ -158,7 +158,50 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 }
 
 
+int getBoundingIdBoxForKeypointIndex(DataFrame &frame, int keypointIdx)
+{
+	// helper function to find a bounding box id for a given keypoint index
+	cv::KeyPoint &kp = frame.keypoints[keypointIdx];
+	for (auto it = frame.boundingBoxes.begin(); it != frame.boundingBoxes.end(); ++it)
+	{
+		for (auto it2 = it->keypoints.begin(); it2 != it->keypoints.end(); ++it2)
+		{
+			if (it2->pt == kp.pt)
+			{
+				return it->boxID;
+			}
+		}
+	}
+	return -1;
+}
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // ...
+	std::map<int, std::map<int, int> > bounding_box_matches;
+	// bounding_box_matches maps prev frame bounding box id to all possible candidates
+	// in current frame: a map from candidate box id to number of keypoint matches
+	for (auto &match : matches)
+	{
+		int prevBoxId = getBoundingIdBoxForKeypointIndex(prevFrame, match.queryIdx);
+		if (prevBoxId == -1) continue;
+		int currBoxId = getBoundingIdBoxForKeypointIndex(currFrame, match.trainIdx);
+		if (currBoxId == -1) continue;
+		bounding_box_matches[prevBoxId][currBoxId]++;
+	}
+	for (auto &p : bounding_box_matches)
+	{
+		int max_match = 0;
+		int max_match_id = -1;
+		for (auto p2 : p.second)
+		{
+			if (p2.second > max_match)
+			{
+				max_match = p2.second;
+				max_match_id = p2.first;
+			}
+		}
+		if (max_match_id != -1)
+		{
+			bbBestMatches[p.first] = max_match_id;
+		}
+	}
 }
