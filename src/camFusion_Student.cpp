@@ -158,22 +158,6 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 }
 
 
-int getBoundingIdBoxForKeypointIndex(DataFrame &frame, int keypointIdx)
-{
-	// helper function to find a bounding box id for a given keypoint index
-	cv::KeyPoint &kp = frame.keypoints[keypointIdx];
-	for (auto it = frame.boundingBoxes.begin(); it != frame.boundingBoxes.end(); ++it)
-	{
-		for (auto it2 = it->keypoints.begin(); it2 != it->keypoints.end(); ++it2)
-		{
-			if (it2->pt == kp.pt)
-			{
-				return it->boxID;
-			}
-		}
-	}
-	return -1;
-}
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
 	std::map<int, std::map<int, int> > bounding_box_matches;
@@ -181,12 +165,23 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
 	// in current frame: a map from candidate box id to number of keypoint matches
 	for (auto &match : matches)
 	{
-		int prevBoxId = getBoundingIdBoxForKeypointIndex(prevFrame, match.queryIdx);
-		if (prevBoxId == -1) continue;
-		int currBoxId = getBoundingIdBoxForKeypointIndex(currFrame, match.trainIdx);
-		if (currBoxId == -1) continue;
-		bounding_box_matches[prevBoxId][currBoxId]++;
+		cv::KeyPoint &prevKeyPoint = prevFrame.keypoints[match.queryIdx];
+		cv::KeyPoint &currKeyPoint = currFrame.keypoints[match.trainIdx];
+		for (auto &prevBox : prevFrame.boundingBoxes)
+		{
+			if (prevBox.roi.contains(prevKeyPoint.pt))
+			{
+				for (auto &currBox : currFrame.boundingBoxes)
+				{
+					if (currBox.roi.contains(currKeyPoint.pt))
+					{
+						bounding_box_matches[prevBox.boxID][currBox.boxID]++;
+					}
+				}
+			}
+		}
 	}
+	// search for max match count for each box in prevFrame:
 	for (auto &p : bounding_box_matches)
 	{
 		int max_match = 0;
