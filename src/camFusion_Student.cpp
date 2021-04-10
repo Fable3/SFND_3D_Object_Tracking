@@ -195,7 +195,49 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, 
                       std::vector<cv::DMatch> &kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
 {
-    // ...
+    // for each point pairs, store the distance for previous and current frame
+	std::vector<std::pair<float, float> > distance_pairs;
+	float max_point_dist = 0; // we'll filter out close point pairs based on this
+	for (auto match_it1 = kptMatches.begin(); match_it1!=kptMatches.end();++match_it1)
+	{
+		auto kp1_prev = kptsPrev[match_it1->queryIdx].pt;
+		auto kp1_curr = kptsCurr[match_it1->trainIdx].pt;
+		for (auto match_it2 = match_it1 + 1; match_it2 != kptMatches.end(); ++match_it2)
+		{
+			auto kp2_prev = kptsPrev[match_it2->queryIdx].pt;
+			auto kp2_curr = kptsCurr[match_it2->trainIdx].pt;
+			auto prev_vect = kp2_prev - kp1_prev;
+			float dist_prev = sqrt(prev_vect.dot(prev_vect));
+			auto curr_vect = kp2_curr - kp1_curr;
+			float dist_curr = sqrt(curr_vect.dot(curr_vect));
+			distance_pairs.push_back(std::pair<float, float>(dist_prev, dist_curr));
+			if (dist_curr > max_point_dist) max_point_dist = dist_curr;
+		}
+	}
+	std::vector<float> filtered_distance_ratios;
+	for (auto dist_pair : distance_pairs)
+	{
+		if (dist_pair.first>0 && dist_pair.second > max_point_dist / 2)
+		{
+			filtered_distance_ratios.push_back(dist_pair.second / dist_pair.first);
+		}
+	}
+	// nth_element is more optimal than sort, we only need the middle value (or values if length is even)
+	std::nth_element(filtered_distance_ratios.begin(),
+		filtered_distance_ratios.begin() + filtered_distance_ratios.size() / 2,
+		filtered_distance_ratios.end());
+	float median_dist_ratio = filtered_distance_ratios[filtered_distance_ratios.size() / 2];
+	if (filtered_distance_ratios.size() % 2 == 0)
+	{
+		int idx = filtered_distance_ratios.size() / 2 - 1;
+		std::nth_element(filtered_distance_ratios.begin(),
+			filtered_distance_ratios.begin() + idx,
+			filtered_distance_ratios.end());
+		median_dist_ratio = (median_dist_ratio + filtered_distance_ratios[idx]) / 2;
+	}
+	// using median instead of mean, big errors have less effect in the result
+	
+	TTC = 1 / (frameRate * (median_dist_ratio - 1)); // frameRate is 1/s
 }
 
 
