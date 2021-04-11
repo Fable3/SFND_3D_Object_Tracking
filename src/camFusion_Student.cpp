@@ -128,17 +128,19 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         }
 		
 		double xwmin_median = getLidarPointCloudDistance(it1->lidarPoints);
-		/*
+		
         // draw enclosing rectangle
-        cv::rectangle(topviewImg, cv::Point(left, top), cv::Point(right, bottom),cv::Scalar(0,0,0), 2);
-
+        //cv::rectangle(topviewImg, cv::Point(left, top), cv::Point(right, bottom),cv::Scalar(0,0,0), 2);
+		// find height of median dist:
+		float z_of_closest_point = 0;
+		for (auto &p : it1->lidarPoints) if (p.x == xwmin_median) z_of_closest_point = p.z;
         // augment object with some key data
         char str1[200], str2[200];
         sprintf(str1, "id=%d, #pts=%d", it1->boxID, (int)it1->lidarPoints.size());
         putText(topviewImg, str1, cv::Point2f(left-250* imageSize.width /2000, bottom+50* imageSize.height / 2000), cv::FONT_ITALIC, imageSize.height/1000.0, currColor);
-        sprintf(str2, "xmin=%2.2f m (median %2.2f), yw=%2.2f m", xwmin, xwmin_median, ywmax-ywmin);
+        sprintf(str2, "xmin=%2.2f m (median %2.2f, z=%2.2f), yw=%2.2f m", xwmin, xwmin_median, z_of_closest_point, ywmax-ywmin);
         putText(topviewImg, str2, cv::Point2f(left-250* imageSize.width / 2000, bottom+125 * imageSize.height / 2000), cv::FONT_ITALIC, imageSize.height / 1000.0, currColor);
-		*/
+		
     }
 
     // plot distance markers
@@ -211,6 +213,10 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 	{
 		auto kp1_prev = kptsPrev[match_it1->queryIdx].pt;
 		auto kp1_curr = kptsCurr[match_it1->trainIdx].pt;
+		if (visImg != nullptr)
+		{
+			cv::line(*visImg, kp1_prev, kp1_curr, cv::Scalar(255, 255, 0), 1);
+		}
 		for (auto match_it2 = match_it1 + 1; match_it2 != kptMatches.end(); ++match_it2)
 		{
 			auto kp2_prev = kptsPrev[match_it2->queryIdx].pt;

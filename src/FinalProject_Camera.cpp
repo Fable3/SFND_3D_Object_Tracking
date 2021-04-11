@@ -136,7 +136,7 @@ int run(std::string detectorType, std::string descriptorType, std::vector<float>
         clusterLidarWithROI((dataBuffer.end()-1)->boundingBoxes, (dataBuffer.end() - 1)->lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
-        bVis = true;
+        bVis = false;
         if(bVis)
         {
             show3DObjects((dataBuffer.end()-1)->boundingBoxes, cv::Size(4.0, 4.0), cv::Size(1000, 1000), false, imgIndex+imgStartIndex);
@@ -291,12 +291,18 @@ int run(std::string detectorType, std::string descriptorType, std::vector<float>
                     //// STUDENT ASSIGNMENT
                     //// TASK FP.3 -> assign enclosed keypoint matches to bounding box (implement -> clusterKptMatchesWithROI)
                     //// TASK FP.4 -> compute time-to-collision based on camera (implement -> computeTTCCamera)
+					cv::Mat visImgMatch = (dataBuffer.end() - 1)->cameraImg.clone();
                     double ttcCamera;
-                    clusterKptMatchesWithROI(*currBB, (dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->kptMatches);                    
-                    computeTTCCamera((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera);
+                    clusterKptMatchesWithROI(*currBB, (dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->kptMatches);
+                    computeTTCCamera((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera, &visImgMatch);
+					{
+						char tmp[20];
+						sprintf(tmp, "match_%02d.png", imgIndex + imgStartIndex);
+						cv::imwrite(tmp, visImgMatch);
+					}
                     //// EOF STUDENT ASSIGNMENT
 
-                    bVis = false;
+                    bVis = true;
                     if (bVis)
                     {
                         cv::Mat visImg = (dataBuffer.end() - 1)->cameraImg.clone();
@@ -307,11 +313,18 @@ int run(std::string detectorType, std::string descriptorType, std::vector<float>
                         sprintf(str, "TTC Lidar : %f s, TTC Camera : %f s", ttcLidar, ttcCamera);
                         putText(visImg, str, cv::Point2f(80, 50), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0,0,255));
 
+						{
+							// save image
+							char tmp[20];
+							sprintf(tmp, "augmented_%02d.png", imgIndex+imgStartIndex);
+							cv::imwrite(tmp, visImg);
+						}
+
                         string windowName = "Final Results : TTC";
                         cv::namedWindow(windowName, 4);
                         cv::imshow(windowName, visImg);
                         cout << "Press key to continue to next frame" << endl;
-                        cv::waitKey(0);
+                        //cv::waitKey(0);
                     }
                     bVis = false;
 
@@ -381,5 +394,5 @@ void gen_report()
 
 int main(int argc, const char *argv[])
 {
-	run("FAST", "BRIEF");
+	run("ORB", "BRIEF");
 }

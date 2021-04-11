@@ -113,7 +113,7 @@ void showLidarImgOverlay(cv::Mat &img, std::vector<LidarPoint> &lidarPoints, cv:
     cv::Mat X(4,1,cv::DataType<double>::type);
     cv::Mat Y(3,1,cv::DataType<double>::type);
     for(auto it=lidarPoints.begin(); it!=lidarPoints.end(); ++it) {
-
+		
             X.at<double>(0, 0) = it->x;
             X.at<double>(1, 0) = it->y;
             X.at<double>(2, 0) = it->z;
@@ -128,7 +128,12 @@ void showLidarImgOverlay(cv::Mat &img, std::vector<LidarPoint> &lidarPoints, cv:
             float val = it->x;
             int red = min(255, (int)(255 * abs((val - maxVal) / maxVal)));
             int green = min(255, (int)(255 * (1 - abs((val - maxVal) / maxVal))));
-            cv::circle(overlay, pt, 5, cv::Scalar(0, green, red), -1);
+			int blue = 0;
+			/*if (!(it->z<-0.92 || it->z>-0.9)) // highlight anomaly in frame 6 & 7
+			{
+				blue=255;
+			}*/
+            cv::circle(overlay, pt, 5, cv::Scalar(blue, green, red), -1);
     }
 
     float opacity = 0.6;

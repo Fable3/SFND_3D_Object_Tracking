@@ -41,6 +41,30 @@ Lidar animation
 
 <img src="images/all_lidar_points.gif" width="1000" height="1000" />
 
+The preceding vehicle is getting closer at a steady rate with a few outlier points which were filtered out for distance calculation.
+For almost all of the frames, the Z coordinate of the closest point is around -1.15. However at frame 6 and 7, there's an anomaly, the Z coordinate here is -0.91, which is on the license plate.
+<img src="images/top_06.png" width="1000" height="1000" />
+
+<img src="images/augmented_06.png" width="1242" height="375" />
+From the lidar point cloud, it seems like the license plate pops out, and the preceding vehicle is calculated to be 5 cm closer than it should be. It creates a big jump in the TTC calculation, which drops to 7.09 seconds.
+
+At the next frame, this point cloud remains almost steady in air, creating a big TTC number of 47.28 seconds.
+
+## Camera
+
+ORB detector, BRIEF descriptor was one of the selected keypoint matching algorithm pair from the previous project. Frame 2 has a very high TTC value, 111.43. Here's an image with teal lines between matching points:
+<img src="images/orb_brief_02.gif" width="1242" height="375" />
+The ORB detector is limited to 1000 detected keypoints (instead of the default 500), but there're still too few keypoints on the preceding vehicle. Many of the keypoints are on the gray car in the right lane.
+
+The FAST detector with BRIEF descriptor has very good performance. In frame 5, the TTC calculation jumped to 22.38 seconds:
+<img src="images/fast_brief_05.gif" width="1242" height="375" />
+There're a good amount of matches keypoints on the vehicle, but there're many on the car in the right lane.
+
+The keypoints which are not on the preceding vehicle should be filtered out. Maybe cutting out the corners would help in this case, but the good solution would be to use semantic segmentation on the image to have better outlines.
+
+Generally, the main problem is that the distances between keypoints are very small. The keypoints have to be very precisely centered on the same point to have reliable results. By taking the median distance ratio we minimized the effect of outliers in the result, but it doesn't help with the noise.
+
+
 detector+descriptor| 1| 2| 3| 4| 5| 6| 7| 8| 9| 10| 11| 12| 13| 14| 15| 16| 17| 18
 ---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---
 SHITOMASI+BRISK| 14.04| 12.76| 13.53| 11.97| 12.00| 13.67| 12.66| 13.28| 11.27| 13.50| 11.05| 11.53| 11.60| 11.22| 9.31| 11.02| 11.13| 8.73
