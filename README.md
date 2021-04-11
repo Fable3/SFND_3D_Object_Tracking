@@ -34,23 +34,81 @@ In this final project, you will implement the missing parts in the schematic. To
 3. Compile: `cmake .. && make`
 4. Run it: `./3D_object_tracking`.
 
+## Project Rubric
 
-## Performance
+### FP.1 Match 3D objects
 
-Lidar animation
+```
+Implement the method "matchBoundingBoxes", which takes as input both the previous and the current data frames and provides as output the ids of the matched regions of interest (i.e. the boxID property). Matches must be the ones with the highest number of keypoint correspondences.
+```
+
+Instead of the suggested multimap, I used a map inside a map: `std::map<int, std::map<int, int> > bounding_box_matches;`
+This container maps each bounding box in the previous frame to all candidates in the current frame. The inner map (key, value) pair is the (current box id, number of keypoint correspondence).
+
+In the second part, for each bounding box, the best candidate is selected by maximum correspondence.
+
+### FP.2 Compute Lidar-based TTC
+
+```
+Compute the time-to-collision in second for all matched 3D objects using only Lidar measurements from the matched bounding boxes between current and previous frame.
+```
+
+The function is implemented in `computeTTCLidar` as suggested. With the `getLidarPointCloudDistance` the distance in the previous and current frame is calculated.
+From the difference, and frame rate, relative velocity is calculated. The time to collision is then simply the distance divided by the velocity.
+
+The key is the `getLidarPointCloudDistance` function, where outlier points are eliminated. The distance here is the coordinate difference in driving direction, which corresponds to the `x` coordinate.
+There were many random points scattered, so I collected the 9 nearest points, and took the median. This actually eliminates 4 random points. The result is also shown in the top view rendering.
+
+### FP.3 Associate Keypoint Correspondences with Bounding Boxes
+
+```
+Prepare the TTC computation based on camera measurements by associating keypoint correspondences to the bounding boxes which enclose them. All matches which satisfy this condition must be added to a vector in the respective bounding box.
+```
+
+This functionality is implemented in `clusterKptMatchesWithROI`. First, all matches which belong to a specific bounding box are collected in `std::vector<std::pair<cv::DMatch, float> > PreFilteredMatchesWithDistance`.
+Here the second argument of the pair is the distance of the match. Then the mean value of the distances are calculated, and all matches that are too far apart are eliminated.
+The limit I used for this is from this `mean_distance*2+1`. Often there were many matches with 1 or sqrt(2) distance, so this formula with the +1 constant seemed to work well.
+The result is stored in the bounding box `kptMatches` field. The `keypoints` is also filled, although it's not used anywhere.
+
+### FP.4 Compute Camera-based TTC
+
+```
+Compute the time-to-collision in second for all matched 3D objects using only keypoint correspondences from the matched bounding boxes between current and previous frame.
+```
+
+The `computeTTCCamera` function calculates the time to collision based on keypoint matches. All point pairs of the current frame are also checked in the previous frame, and their distances are stored in a container: `std::vector<std::pair<float, float> > distance_pairs`
+Based on the maximum point distance in the current frame, all point pairs which are less than half of this maxmimum distance are dropped. The reason for this filter is that close points can have very noisy distance ratio, points that are far apart are more accurate.
+The result is stored in `filtered_distance_ratios`. Since outliers could have too big effect on the result, the statistically robust way is to take the median of the ratios. There's a very fast way to take the median of a container without sorting it, utilizing `std::nth_element`.
+
+The time to collision result is the rearranged formula of `1 / (frameRate * (median_dist_ratio - 1))`.
+
+### FP.5 Performance Evaluation 1
+
+```
+Find examples where the TTC estimate of the Lidar sensor does not seem plausible. Describe your observations and provide a sound argumentation why you think this happened.
+```
 
 <img src="images/all_lidar_points.gif" width="1000" height="1000" />
 
 The preceding vehicle is getting closer at a steady rate with a few outlier points which were filtered out for distance calculation.
-For almost all of the frames, the Z coordinate of the closest point is around -1.15. However at frame 6 and 7, there's an anomaly, the Z coordinate here is -0.91, which is on the license plate.
+For almost all of the frames, the Z coordinate of the closest point is around -1.15, which is the rear bumper. However at frame 6 and 7, there's an anomaly, the Z coordinate here is -0.91, which is on the license plate.
 <img src="images/top_06.png" width="1000" height="1000" />
 
 <img src="images/augmented_06.png" width="1242" height="375" />
 From the lidar point cloud, it seems like the license plate pops out, and the preceding vehicle is calculated to be 5 cm closer than it should be. It creates a big jump in the TTC calculation, which drops to 7.09 seconds.
 
 At the next frame, this point cloud remains almost steady in air, creating a big TTC number of 47.28 seconds.
+<img src="images/top_07.png" width="1000" height="1000" />
 
-## Camera
+Originally there were many outlier points, for example in frame 4:
+<img src="images/top_04.png" width="1000" height="1000" />
+Here a single point is 7 cm closer than the rear bumper (which is calculated as median of closest 9 points).
+
+### FP.6 Performance Evaluation 2
+
+```
+Run several detector / descriptor combinations and look at the differences in TTC estimation. Find out which methods perform best and also include several examples where camera-based TTC estimation is way off. As with Lidar, describe your observations again and also look into potential reasons.
+```
 
 ORB detector, BRIEF descriptor was one of the selected keypoint matching algorithm pair from the previous project. Frame 2 has a very high TTC value, 111.43. Here's an image with teal lines between matching points:
 <img src="images/orb_brief_02.gif" width="1242" height="375" />
@@ -64,6 +122,11 @@ The keypoints which are not on the preceding vehicle should be filtered out. May
 
 Generally, the main problem is that the distances between keypoints are very small. The keypoints have to be very precisely centered on the same point to have reliable results. By taking the median distance ratio we minimized the effect of outliers in the result, but it doesn't help with the noise.
 
+Here are all the possible detector/descriptor combinations. The Harris method has 2 implementation, using `cv::cornerHarris` (HARRIS) and `cv::goodFeaturesToTrack` (HARRIS_GFT).
+
+From the previous project, FAST+BRIEF, FAST+ORB and ORB+BRIEF was selected based on performance. Out of those 3, FAST+BRIEF was the fastest, and it also performs best in this scenario.
+
+In the last line, I inluded the TTC based on LIDAR measurements for reference. (Frame 6-7-8 are unreliable because of the weird anomaly in the point cloud shown above)
 
 detector+descriptor| 1| 2| 3| 4| 5| 6| 7| 8| 9| 10| 11| 12| 13| 14| 15| 16| 17| 18
 ---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---
