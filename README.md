@@ -95,14 +95,14 @@ For almost all of the frames, the Z coordinate of the closest point is around -1
 <img src="images/top_06.png" width="1000" height="1000" />
 
 <img src="images/augmented_06.png" width="1242" height="375" />
-From the lidar point cloud, it seems like the license plate pops out, and the preceding vehicle is calculated to be 5 cm closer than it should be. It creates a big jump in the TTC calculation, which drops to 7.09 seconds.
+Here cyan color means Z coordinate is between -0.92 and -0.9. It seems like the license plate pops out, and the preceding vehicle is calculated to be 5 cm closer than it should be. It creates a big jump in the TTC calculation, which drops to 7.09 seconds.
 
 At the next frame, this point cloud remains almost steady in air, creating a big TTC number of 47.28 seconds.
 <img src="images/top_07.png" width="1000" height="1000" />
 
 Originally there were many outlier points, for example in frame 4:
 <img src="images/top_04.png" width="1000" height="1000" />
-Here a single point is 7 cm closer than the rear bumper (which is calculated as median of closest 9 points).
+Here a single point is 7 cm closer than the rear bumper (which is calculated as median of closest 9 points). These outlier points are now ignored in TTC calculation.
 
 ### FP.6 Performance Evaluation 2
 
@@ -110,7 +110,7 @@ Here a single point is 7 cm closer than the rear bumper (which is calculated as 
 Run several detector / descriptor combinations and look at the differences in TTC estimation. Find out which methods perform best and also include several examples where camera-based TTC estimation is way off. As with Lidar, describe your observations again and also look into potential reasons.
 ```
 
-ORB detector, BRIEF descriptor was one of the selected keypoint matching algorithm pair from the previous project. Frame 2 has a very high TTC value, 111.43. Here's an image with teal lines between matching points:
+ORB detector, BRIEF descriptor was one of the selected keypoint matching algorithm pair from the previous project. Frame 2 has a very high TTC value, 111.43. Here's an image with cyan lines between matching points:
 <img src="images/orb_brief_02.gif" width="1242" height="375" />
 The ORB detector is limited to 1000 detected keypoints (instead of the default 500), but there're still too few keypoints on the preceding vehicle. Many of the keypoints are on the gray car in the right lane.
 
