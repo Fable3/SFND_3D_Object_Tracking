@@ -37,6 +37,10 @@ In this final project, you will implement the missing parts in the schematic. To
 
 ## Performance
 
+Lidar animation
+
+<img src="images/all_lidar_points.gif" width="1000" height="1000" />
+
 detector+descriptor| 1| 2| 3| 4| 5| 6| 7| 8| 9| 10| 11| 12| 13| 14| 15| 16| 17| 18
 ---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---
 SHITOMASI+BRISK| 14.04| 12.76| 13.53| 11.97| 12.00| 13.67| 12.66| 13.28| 11.27| 13.50| 11.05| 11.53| 11.60| 11.22| 9.31| 11.02| 11.13| 8.73

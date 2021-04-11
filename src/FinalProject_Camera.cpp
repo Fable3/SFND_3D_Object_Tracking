@@ -25,13 +25,8 @@ using namespace std;
 
 /* MAIN PROGRAM */
 //int main(int argc, const char *argv[])
-int run(std::string detectorType, std::string descriptorType, std::vector<float> &TTCEstimates)
+int run(std::string detectorType, std::string descriptorType, std::vector<float> *TTCEstimates = nullptr)
 {
-	/*if (1)
-	{
-		for (int i = 0; i < 18; i++) TTCEstimates.push_back(((i * 101) % 14) / 10.0 + 9.0);
-		return 0;
-	}*/
     /* INIT VARIABLES AND DATA STRUCTURES */
 
     // data location
@@ -141,10 +136,10 @@ int run(std::string detectorType, std::string descriptorType, std::vector<float>
         clusterLidarWithROI((dataBuffer.end()-1)->boundingBoxes, (dataBuffer.end() - 1)->lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
-        bVis = false;
+        bVis = true;
         if(bVis)
         {
-            show3DObjects((dataBuffer.end()-1)->boundingBoxes, cv::Size(4.0, 20.0), cv::Size(1000, 1000), true);
+            show3DObjects((dataBuffer.end()-1)->boundingBoxes, cv::Size(4.0, 4.0), cv::Size(1000, 1000), false, imgIndex+imgStartIndex);
         }
         bVis = false;
 
@@ -320,7 +315,7 @@ int run(std::string detectorType, std::string descriptorType, std::vector<float>
                     }
                     bVis = false;
 
-					TTCEstimates.push_back(ttcCamera);
+					if (TTCEstimates!=nullptr) TTCEstimates->push_back(ttcCamera);
                 } // eof TTC computation
             } // eof loop over all BB matches            
 
@@ -331,7 +326,7 @@ int run(std::string detectorType, std::string descriptorType, std::vector<float>
     return 0;
 }
 
-int main(int argc, const char *argv[])
+void gen_report()
 {
 	vector<string> all_detectors = { "SHITOMASI", "HARRIS", "HARRIS_GFT", "FAST", "BRISK", "ORB", "AKAZE", "SIFT" };
 	//vector<string> all_detectors = { "SHITOMASI", "HARRIS", "HARRIS_GFT" };
@@ -371,7 +366,7 @@ int main(int argc, const char *argv[])
 				continue;
 			}
 			std::vector<float> TTCEstimates;
-			run(detectorType, descriptorType, TTCEstimates);
+			run(detectorType, descriptorType, &TTCEstimates);
 			fprintf(fLogFile, "%s+%s", detectorType.c_str(), descriptorType.c_str());
 			for (i = 0; i < num_frames; i++)
 			{
@@ -382,4 +377,9 @@ int main(int argc, const char *argv[])
 		}
 	}
 	fclose(fLogFile);
+}
+
+int main(int argc, const char *argv[])
+{
+	run("FAST", "BRIEF");
 }

@@ -88,7 +88,7 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
 * However, you can make this function work for other sizes too.
 * For instance, to use a 1000x1000 size, adjusting the text positions by dividing them by 2.
 */
-void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, cv::Size imageSize, bool bWait)
+void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, cv::Size imageSize, bool bWait, int nFrameCounter)
 {
     // create topview image
     cv::Mat topviewImg(imageSize, CV_8UC3, cv::Scalar(255, 255, 255));
@@ -96,7 +96,8 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
     for(auto it1=boundingBoxes.begin(); it1!=boundingBoxes.end(); ++it1)
     {
         // create randomized color for current 3D object
-        cv::RNG rng(it1->boxID);
+        //cv::RNG rng(it1->boxID);
+		cv::RNG rng(it1->lidarPoints.empty()?0:it1->lidarPoints.front().x*0x2000000);
         cv::Scalar currColor = cv::Scalar(rng.uniform(0,150), rng.uniform(0, 150), rng.uniform(0, 150));
 
         // plot Lidar points into top view image
@@ -113,7 +114,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
             ywmax = ywmax>yw ? ywmax : yw;
 
             // top-view coordinates
-            int y = (-xw * imageSize.height / worldSize.height) + imageSize.height;
+            int y = (-(xw-6) * imageSize.height / worldSize.height) + imageSize.height;
             int x = (-yw * imageSize.width / worldSize.width) + imageSize.width / 2;
 
             // find enclosing rectangle
@@ -127,7 +128,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         }
 		
 		double xwmin_median = getLidarPointCloudDistance(it1->lidarPoints);
-
+		/*
         // draw enclosing rectangle
         cv::rectangle(topviewImg, cv::Point(left, top), cv::Point(right, bottom),cv::Scalar(0,0,0), 2);
 
@@ -137,6 +138,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         putText(topviewImg, str1, cv::Point2f(left-250* imageSize.width /2000, bottom+50* imageSize.height / 2000), cv::FONT_ITALIC, imageSize.height/1000.0, currColor);
         sprintf(str2, "xmin=%2.2f m (median %2.2f), yw=%2.2f m", xwmin, xwmin_median, ywmax-ywmin);
         putText(topviewImg, str2, cv::Point2f(left-250* imageSize.width / 2000, bottom+125 * imageSize.height / 2000), cv::FONT_ITALIC, imageSize.height / 1000.0, currColor);
+		*/
     }
 
     // plot distance markers
@@ -152,6 +154,13 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
     string windowName = "3D Objects";
     cv::namedWindow(windowName, 1);
     cv::imshow(windowName, topviewImg);
+	{
+		// save image
+		char tmp[20];
+		sprintf(tmp, "top_%02d.png", nFrameCounter);
+		cv::imwrite(tmp, topviewImg);
+	}
+
 
     if(bWait)
     {
