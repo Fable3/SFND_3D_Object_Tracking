@@ -324,7 +324,7 @@ int run(std::string detectorType, std::string descriptorType, std::vector<float>
                         cv::namedWindow(windowName, 4);
                         cv::imshow(windowName, visImg);
                         cout << "Press key to continue to next frame" << endl;
-                        //cv::waitKey(0);
+                        cv::waitKey(0);
                     }
                     bVis = false;
 
@@ -394,5 +394,6 @@ void gen_report()
 
 int main(int argc, const char *argv[])
 {
-	run("ORB", "BRIEF");
+	//run("ORB", "BRIEF");
+	run("FAST", "BRIEF");
 }
